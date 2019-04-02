@@ -37,7 +37,7 @@ reliées.
    uniquement l'extension du fichier.
 
 3. Une fonction qui prend en paramètre chaîne de caractères contenant une date
-   en format ISO 8601 (ex. `2016-11-21`) et qui retourne une chaîne de
+   en format ISO 8601 (ex. `2019-11-21`) et qui retourne une chaîne de
    caractères contenant la même date en version lisible (ex. `21 novembre
    2016`; `1er décembre 2017`).
 
