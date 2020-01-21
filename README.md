@@ -9,6 +9,5 @@ Les ateliers sont dans le répertoire /ateliers/.
 
 Le README se trouve dans le fichier README.md.
 
-Stéphanie aime les burgers mais seulement la fin de semaine..
-Pierre aime vraiment beaucoup la poutine.
-
+Stéphanie aime les burgers mais seulement la fin de semaine.
+Pierre aime la poutine aux oeufs.
