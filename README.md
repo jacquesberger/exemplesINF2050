@@ -8,5 +8,5 @@ Les ateliers sont dans le répertoire /ateliers/.
 Le README se trouve dans le fichier README.md.
 
 Stéphanie aime les burgers.
-Pierre aime la poutine.
+Pierre aime les oeufs brouillés.
 
