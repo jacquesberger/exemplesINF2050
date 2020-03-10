@@ -6,7 +6,3 @@ Mardi 13h30 à 16h30 au SH-3420.
 Les ateliers sont dans le répertoire /ateliers/.
 
 Le README se trouve dans le fichier README.md.
-
-Stéphanie aime les burgers.
-Pierre aime les oeufs brouillés.
-
