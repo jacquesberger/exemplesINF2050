@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- ====================================================================== 
+
+   Copyright 2013 Jacques Berger
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+     ====================================================================== -->
+
+<project name="Sites web" default="deploy-web-site" basedir=".">
+  <property name="base-sources" value="../jberger.org" />
+  <property name="prod-data" value="../jberger.org-prod" />
+  <property name="dest-dir" value="../www" />
+
+  <target name="clean-dest-dir">
+    <delete includeemptydirs="true">
+      <fileset dir="${dest-dir}" defaultexcludes="false" />
+    </delete>
+  </target>
+
+  <target name="copy-base-sources" depends="clean-dest-dir">
+    <copy todir="${dest-dir}" preservelastmodified="true">
+      <fileset dir="${base-sources}" />
+    </copy>
+  </target>
+
+  <target name="copy-prod-data" depends="copy-base-sources">
+    <copy todir="${dest-dir}" preservelastmodified="true" overwrite="true">
+      <fileset dir="${prod-data}" />
+    </copy>
+  </target>
+
+  <target name="delete-unnecessary" depends="copy-prod-data">
+    <delete>
+      <fileset file="${dest-dir}/.project" />
+    </delete>
+    <delete>
+      <fileset file="${dest-dir}/README.md" />
+    </delete>
+    <delete includeemptydirs="true">
+      <fileset dir="${dest-dir}/.settings" defaultexcludes="false" />
+    </delete>
+  </target>
+
+  <target name="deploy-web-site" depends="delete-unnecessary">
+  </target>
+</project>
