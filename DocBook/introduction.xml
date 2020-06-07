@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<chapter version="5.0" xml:id="chapter-introduction" xml:lang="fr_CA"
+         xmlns="http://docbook.org/ns/docbook"
+         xmlns:xlink="http://www.w3.org/1999/xlink"
+         xmlns:xi="http://www.w3.org/2001/XInclude"
+         xmlns:svg="http://www.w3.org/2000/svg"
+         xmlns:m="http://www.w3.org/1998/Math/MathML"
+         xmlns:html="http://www.w3.org/1999/xhtml"
+         xmlns:db="http://docbook.org/ns/docbook">
+  <title>Introduction</title>
+
+  <section>
+    <title>Mot de bienvenue</title>
+
+    <para>Tout d'abord, nous vous souhaitons la bienvenue et vous remercions
+    d'avoir choisi la suite IFSR.</para>
+
+    <para>Ce document vous expliquera comment utiliser les différentes
+    sections du logiciel IFSR. Les concepts et les interfaces utilisateurs du
+    logiciel vous seront détaillés dans les quelques chapitres qui suivent.
+    Les annexes contiennent de l'information plus technique et sont destinées
+    à l'administrateur du système.</para>
+  </section>
+
+  <section>
+    <title>La suite IFSR</title>
+
+    <para>La suite IFSR (Institution financière socialement responsable) est
+    une application permettant de faire le suivi des diverses demandes de
+    financement faites à votre organisation. À l'aide de cet outil, vous serez
+    en mesure de faire un suivi très serré de chaque dossier, vous assurant
+    ainsi d'une meilleure efficacité et d'une plus grande satisfaction de vos
+    clients.</para>
+  </section>
+</chapter>

@@ -1,0 +1,1784 @@
+\documentclass[11pt,twoside]{memoireuqam1.3}
+
+\usepackage{fancyvrb}
+\usepackage{graphicx}% Pour les figures
+\usepackage[french]{babel}
+\usepackage[ansinew]{inputenc} % Pour utiliser les caractères accentués sous Windows
+\usepackage[T1]{fontenc}          % coupure des mots accentués
+\usepackage{url}
+
+
+\begin{document}
+
+\title{Développement d'un outil de génération de code}
+\author{Jacques \textsc{Berger}}
+\degreemonth{Mai}
+\degreeyear{2008}
+\uqamrapport
+\thispagestyle{empty}        % La page titre n'est pas numérotée
+\maketitle
+
+\renewcommand \bibname{R\'EF\'ERENCES}
+\renewcommand \listfigurename{LISTE DES FIGURES}
+\renewcommand \appendixname{APPENDICE}
+\renewcommand \figurename{Figure}
+\renewcommand \tablename{Tableau}
+
+\DefineVerbatimEnvironment{CodeSource}{Verbatim}
+{frame=single, numbers=left, numbersep=3pt, numberblanklines=false}
+\newenvironment{MyMinipage}
+{
+\begin{center}
+\begin{minipage}{0.9\hsize}
+\begin{footnotesize}
+}
+{
+\end{footnotesize}
+\end{minipage}
+\end{center}
+}
+
+\pagenumbering{roman} % numérotation des pages en chiffres romains
+\addtocounter{page}{1} % Pour que les remerciements commencent à la page ii
+\tableofcontents % Pour générer la table des matières
+\listoffigures % Pour générer la liste des figures
+
+\renewcommand{\labelitemi}{$\bullet$}       % puces premier niveau
+\renewcommand{\thefootnote}{\fnsymbol{footnote}} % puces de bas de page
+\newcommand{\row}{\\\rule{0pt}{3ex}}       % esp interlignes d'une table
+
+% |=--------------------------------------------------------------------------=|
+% |=-------------------------=[ Début du document ]=--------------------------=|
+% |=--------------------------------------------------------------------------=|
+
+%===============================================================================
+\addcontentsline{toc}{section}{SIGLES ET ACRONYMES}
+\section*{SIGLES ET ACRONYMES}
+
+\begin{tabular}{l|l}
+\textbf{DAO} & Data Access Object \row
+\textbf{EJB} & Enterprise JavaBeans \row
+\textbf{GUI} & Graphical User Interface \row
+\textbf{IDE} & Integrated Development Environment \row
+\textbf{JAR} & Java ARchive \row
+\textbf{JDBC} & Java DataBase Connectivity \row
+\textbf{JDK} & Java Development Kit \row
+\textbf{POJO} & Plain Old Java Object \row
+\textbf{SGBD} & Système de Gestion de Base de Données \row
+\textbf{SQL} & Structured Query Language \row
+\textbf{UML} & Unified Modeling Language \row
+\textbf{XML} & eXtensible Markup Language \row
+\textbf{XP} & eXtreme Programming \row
+\end{tabular} 
+
+%===============================================================================
+\newpage
+\begin{introduction}
+Dans le monde concurrentiel du développement de logiciels, où la complexité des
+projets augmente continuellement et où les délais pour terminer les projets
+sont de plus en plus courts, il est important de sauver le plus de temps
+possible pour diminuer les coûts et les délais de développement. Ce document
+introduit un outil réalisant cet objectif.
+
+L'outil en question est un générateur de code, nommé \textit{PerGen} pour
+\textit{Persistance Generator}, servant à générer une couche de persistance
+presque complète pour une application. Avec un simple fichier d'entrée où sont
+définies les entités à persister de l'application, le générateur de code
+génère le script de création de la base de données ainsi que les classes
+pour utiliser cette base de données dans un langage de programmation
+orienté-objet.
+
+Plusieurs techniques et approches du génie logiciel ont été appliquées durant
+le développement de ce logiciel et seront discutées en détails dans ce document.
+Tout d'abord, le projet en soi sera présenté. Ensuite, quelques
+travaux reliés seront présentés et l'approche de développement et la
+méthodologie utilisées seront détaillées. Enfin, les différentes techniques
+expérimentées seront décrites ainsi que la façon dont elles ont été appliquées
+et les résultats qu'elles ont apportés. Finalement, quelques discussions sur
+les observations faites lors du développement du logiciel seront exposées,
+ainsi que le déroulement du projet et une synthèse regroupant les conclusions
+des diverses expérimentations.
+\end{introduction}
+
+\chapter1
+
+Ce chapitre présente le projet dans son ensemble. Une description détaillée
+de l'utilité et de l'utilisation du projet est présentée, ainsi que les 
+différents fichiers qui sont produits par ce logiciel. 
+Le chapitre se poursuit ensuite par la présentation de
+la planification originale du projet et se termine avec la présentation
+des travaux reliés.
+
+\section{Description du projet}
+
+L'application développée dans le cadre de ce projet est un générateur de code
+servant à produire le code pour la création et l'exploitation d'une base
+de données. À partir d'un fichier de spécifications écrit dans un métalangage
+ressemblant à du code SQL (\textit{Structured Query Language}) simplifié 
+de haut niveau,
+l'application génère un script de création de tables pour une base de données
+MySQL 5.0\cite{mysql} et des classes Java (JDK 6) pour exploiter cette
+base de données. Les classes Java générées se divisent en deux catégories,
+les POJOs (\textit{Plain Old Java Object}) et les DAOs (\textit{Data Access 
+Object}).
+
+\subsection{Le métalangage}
+
+Le métalangage en question a été développé dans le cadre de ce projet. Il a
+été conçu de façon à correspondre d'assez près au SQL tout en faisait
+abstraction de certains concepts et types de données spécifiques au SQL. Le but
+de cette abstraction est de permettre aux développeurs de porter toute leur
+attention sur le modèle de données plutôt que sur l'implémentation de ce
+modèle. Un
+développeur expérimenté en SQL trouvera ce métalangage ridiculement facile
+à apprendre et à utiliser. Quant à lui, un néophyte en développement de 
+logiciels n'ayant
+à peu près pas touché au SQL de sa carrière comprendra facilement comment
+utiliser cet outil.
+
+Le métalangage sert à représenter les entités que l'application en développement
+devra persister dans une base de données. Par exemple, si une application 
+doit persister trois classes, soit un Client, un Magasin et un Article, alors le
+fichier de spécifications contiendra trois définitions d'entités.
+
+Une définition d'entité contient toute l'information nécessaire à la génération 
+du code. La définition contient :
+\begin{itemize}
+\item le nom de l'entité;
+\item une ou plusieurs définitions de champs, c'est-à-dire :
+\begin{itemize}
+\item le nom du champ;
+\item le type du champ;
+\item un mot-clé indiquant si le champ est requis (optionnel);
+\end{itemize}
+\item aucune, une ou plusieurs relations vers d'autres entités;
+\item aucune, une ou plusieurs contraintes d'unicités.
+\end{itemize}
+Ce ne sont pas tous les types de données SQL qui sont supportés par ce logiciel,
+uniquement un sous-ensemble. Les relations entre les entités peuvent être de
+type \textit{un à plusieurs} ou \textit{plusieurs à plusieurs}; le type
+\textit{un à un} n'est pas supporté. Une contrainte d'unicité s'applique à un
+champ ou à une combinaison de champs. Aucun champ numérique séquentiel servant
+d'identifiant au niveau de la base de données ne doit être spécifié dans 
+l'entité, ceci étant généré automatiquement.
+
+La figure \ref{fig:entity} présente un exemple de définition d'entité où 
+l'entité Item contient deux champs,
+quatres relations vers d'autres entités (Store, Color, Size, SubDepartment) et
+une contrainte d'unicité.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+entity Item (
+  style string(8) required,
+  vendor string,
+  has zero to many Store,
+  has one Color,
+  has one Size,
+  has one SubDepartment,
+  unique (style)
+  );
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de définition d'une entité.}
+\label{fig:entity}
+\end{figure}
+
+\subsection{Le script SQL}
+
+L'outil développé dans le cadre de ce projet génère un script SQL pour créer
+les tables de la base de données, ainsi que les contraintes d'unicité et les
+contraintes d'intégrité. Évidemment, le script généré est conçu pour fonctionner
+avec MySQL 5.0 mais le générateur a été conçu de façon à générer du code
+contenant le moins possible de code spécifique à MySQL et en visant le plus 
+possible la norme SQL2\cite{godin2003}. De cette façon, le jour où nous
+voudrons étendre l'outil pour qu'il supporte plusieurs SGBD (Système de Gestion
+de Base de Données), très peu d'adaptations seront nécessaires.
+
+La correspondance entre les spécifications en métalangage et le script SQL est
+assez proche. On génère une table de base de données pour chacune des entités,
+c'est-à-dire qu'une instruction \textit{CREATE TABLE} est générée pour chaque
+entité. Chaque table générée contient un champ de type \textit{INTEGER}, servant
+d'identifiant (ID), qui est généré automatiquement en plus de tous les autres
+champs de l'entité. Ce champ ajouté est la clé primaire de la table.
+Une correspondance est aussi faite entre les types du
+métalangage et les types SQL. Encore une fois, on tente le plus possible 
+d'utiliser les types SQL2 plutôt que ceux de MySQL. 
+
+Les relations de type \textit{un-à-plusieurs} sont représentées selon 
+la réalisation la
+plus courante, c'est-à-dire qu'on ajoute une clé étrangère, soit un champ
+représentant l'identifiant d'un enregistrement d'une autre 
+table\cite{godin2003}\cite{rumbaugh91}. La clé est placée dans la 
+table ayant la plus petite
+multiplicité. La figure \ref{fig:createtable} illustre une instruction 
+\textit{CREATE TABLE} contenant des relations vers d'autres tables.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+CREATE TABLE ITEM (
+  ITEM_ID INTEGER NOT NULL,
+  STYLE VARCHAR(8),
+  VENDOR VARCHAR(255),
+  COLOR_ID INTEGER NOT NULL,
+  SIZE_ID INTEGER NOT NULL,
+  SUBDEPARTMENT_ID INTEGER NOT NULL,
+  CONSTRAINT PK_ITEM PRIMARY KEY (ITEM_ID)
+);
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Instruction de création de table.}
+\label{fig:createtable}
+\end{figure}
+
+Les relations \textit{plusieurs-à-plusieurs} sont légèrement plus compliquées
+à traiter.
+Pour ces relations, il est nécessaire de créer une nouvelle table qui ne
+s'occupera que de cette relation\cite{godin2003}\cite{rumbaugh91}. 
+Une telle table contient
+donc trois colonnes, un identifiant, l'identifiant d'une des deux tables
+et l'identifiant de l'autre table.
+
+On peut remarquer dans la figure \ref{fig:createtable} que les contraites de
+clés étrangères et d'unicité ne sont pas incluses dans cette instruction. Ces
+contraintes sont faites dans des instructions \textit{ALTER TABLE} à la fin
+du script. On applique cette démarche pour simplifier la génération
+du code. Lorsqu'on fait directement référence à une autre table dans une
+instruction de création de table, cette dernière doit déjà exister. Ceci
+complexifie la génération du script puisqu'il faut générer les tables dans un
+ordre très précis. Les contraintes d'unicité auraient pu être faites
+directement à la création de la table, sans conséquences. En générant les
+contraintes d'intégrité référentielles à la fin, nous pouvons générer les tables
+et les contraintes dans n'importe quel ordre.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+ALTER TABLE ITEM ADD (
+  CONSTRAINT FK_ITEM_COLOR 
+  FOREIGN KEY (COLOR_ID) 
+  REFERENCES COLOR(COLOR_ID));
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Instruction d'intégrité référentielle.}
+\label{fig:alterfk}
+\end{figure}
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+CREATE UNIQUE INDEX INDEX_ITEM1 ON ITEM(STYLE);
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Instruction d'unicité.}
+\label{fig:unique}
+\end{figure}
+
+Les figures \ref{fig:alterfk} et \ref{fig:unique} illustrent les instructions 
+pour
+appliquer les contraintes d'intégrité référentielles et les contraintes 
+d'unicité.
+
+\subsection{POJOs}
+
+Un POJO est un objet Java ordinaire\cite{fowler}, n'étant pas un
+Entity Bean ou un autre type d'objet de la grosse architecture EJB
+(\textit{Enterprise JavaBeans}). C'est un objet Java tout ce qu'il y a de plus
+commun.
+
+Un POJO par entité est généré et les POJOs ne contiennent à peu près que des
+champs, accesseurs et modifieurs (\textit{getters} et \textit{setters}).
+En effet, chaque champ de l'entité deviendra un champ privé dans l'objet Java
+avec un accesseur et un modifieur publics. Le nom du POJO est le même nom que
+l'entité et les noms des champs sont aussi conservés; la seule différence avec
+les noms du fichier de spécifications réside dans le fait que les noms sont 
+transformés de 
+façon à respecter les normes de Sun\cite{javacode} relativement aux 
+noms des 
+classes et variables. Le champ de type entier servant d'identifiant pour 
+l'enregistrement au niveau de la base de données est aussi ajouté au POJO.
+Cet identifiant servira entre autres à déterminer si l'enregistrement devra
+être ajouté ou modifié à la base de données. Ce point sera d'ailleurs
+détaillé dans une
+prochaine section. Un constructeur sans paramètre est aussi ajouté au
+POJO. La figure \ref{fig:pojo} illustre un POJO généré à partir d'une entité
+n'ayant qu'un seul champ et aucune relation.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+public class Color {
+    public Color() {
+    }
+    private Integer id = null;
+    public Integer getId() {
+        return id;
+    }
+    public void setId(Integer newId) {
+        id = newId;
+    }
+    private String name = null;
+    public String getName() {
+        return name;
+    }
+    public void setName(String newValue) {
+        name = newValue;
+    }
+}
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de POJO.}
+\label{fig:pojo}
+\end{figure}
+
+Les contraintes d'unicité ne sont pas visibles au niveau des POJOs mais les
+relations entre les entités le sont. Pour simplifier l'implémentation du
+générateur de code, les relations entre les entités sont faites avec les
+identifiants au lieu d'utiliser des références vers des objets. Les relations
+sont représentées dans les deux sens au niveau des POJOs, ce qui n'est pas le 
+cas
+au niveau de la base de données. Par exemple, si une entité possède une relation
+\textit{un-à-plusieurs} vers une autre entité, alors l'entité du côté 
+\textit{plusieurs} (donc qui a
+un lien vers une entité) possèdera quant à lui un champ entier représentant 
+l'identifiant de
+l'objet en relation. Des accesseurs et modifieurs sont aussi fournis pour ces
+champs. De l'autre côté de la relation, c'est une collection d'identifiants qui
+est générée. Un accesseur pour la collection est généré, ainsi que des méthodes
+pour l'ajout et la suppression d'identifiants. La figure \ref{fig:relationpojo}
+illustre ce cas (une entité avec une relation vers plusieurs objets Item).
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+    private ArrayList<Integer> itemList = new ArrayList<Integer>();
+    public void addItem(Integer itemId) {
+        itemList.add(itemId);
+    }
+    public void removeItem(Integer itemId) {
+        itemList.remove(itemId);
+    }
+    public ArrayList<Integer> getItemList() {
+        return itemList;
+    }
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Une relation dans un POJO.}
+\label{fig:relationpojo}
+\end{figure}
+
+Les POJOs peuvent être instanciés directement par l'utilisateur ou par un DAO.
+
+\subsection{DAOs}
+
+Un DAO est un objet servant à faire le lien entre la structure des données dans
+la base de données et un objet Java\cite{godin2003}. De cette façon,
+l'objet représentant l'entité n'a pas à se soucier de la structure des tables
+de la base de données; c'est le DAO qui s'occupe de toutes les opérations
+d'ajouts, de modifications, de suppressions et d'interrogations de la base de
+données. Toutes ces requêtes SQL sont codées dans le DAO et non dans l'objet
+représentant l'entité du domaine.
+
+C'est JDBC (\textit{Java DataBase Connectivity}) qui a été choisi pour
+l'implémentation des DAOs. Cette décision s'est à peu près imposée d'elle-même
+par rapport à l'utilisation d'EJB ou d'un tout autre système de persistance. 
+Tout d'abord, le code en JDBC est simple et naturel, contrairement à EJB. Le
+développeur peut alors lire le code généré et le comprendre facilement. À la
+limite, ce projet pourrait même servir d'outil pédagogique pour apprendre le
+SQL, le Java et la façon de lier les deux ensembles. Ensuite, l'utilisation
+de JDBC ne requiert aucune installation ni de fichier JAR (\textit{Java
+ARchive}) supplémentaires. Finalement, le code JDBC est particulièrement
+rapide par rapport aux autres possibilités d'implémentation de système de
+persistance. La raison en est bien simple : JDBC utilise un \textit{driver} 
+pour se connecter
+directement à la base de données. Les autres systèmes de persistance ont des
+anté-mémoires et divers mécanismes intéressants mais qui ralentissent les
+requêtes SQL.
+
+Les DAOs générés offrent plusieurs fonctionnalités de base. La figure 
+\ref{fig:interfacedao} illustre les fonctionnalités offertes par un DAO. Dans
+cet exemple, le code des méthodes a été omis volontairement.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+public class ColorDAO {
+    private Connection connection = null;
+    public ColorDAO(final Connection databaseConnection) {}
+    public Color getColor(final Integer id) throws DAOException {}
+    public ArrayList<Color> getAllColors() throws DAOException {}
+    public void delete(final Integer id) throws DAOException {}
+    public void save(final Color color) throws DAOException, 
+                                               NullityException {}
+    protected void checkNullity(final Color color) 
+                                        throws NullityException {}
+    protected Integer getNewId() throws DAOException {}
+}
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Les méthodes d'un DAO.}
+\label{fig:interfacedao}
+\end{figure}
+
+L'interface publique des DAOs offre les fonctionnalités suivantes :
+\begin{itemize}
+\item une méthode pour extraire un objet de ce type de la base de données à 
+      partir de son identifiant;
+\item une méthode pour extraire tous les objets de ce type de la base de 
+      données;
+\item une méthode pour supprimer un objet de la base de données;
+\item une méthode pour enregistrer un objet dans la base de
+      données. C'est d'ailleurs la même méthode qui sert pour l'ajout et la 
+      modification des enregistrements.
+\end{itemize}
+
+À l'interne, l'interface protégée offre aussi des fonctionnalités intéressantes.
+\begin{itemize}
+\item La méthode \textit{checkNullity} sert à vérifier si certains champs de
+      l'objet contiennent la valeur \textit{null}. Au niveau de la 
+      spécification, nous pouvons indiquer qu'un champ est obligatoire; c'est
+      donc cette méthode qui s'occupe de valider ces contraintes. Cette
+      méthode est appelée au début de la méthode \textit{save} et lève une
+      \textit{NullityException} si une des contraintes n'est pas respectée.
+\item La méthode \textit{getNewId} sert à trouver un identifiant unique pour un
+      nouvel enregistrement lors d'une requête de type \textit{INSERT}.
+\end{itemize}
+
+Le constructeur du DAO prend en paramètre un objet de type 
+\textit{java.sql.Connection}.
+Étant donné que le DAO (ou le générateur de code) ignore de quel type est la
+base de données sur laquelle il va se connecter, il ne peut donc pas
+instancier lui-même la connexion. Cette responsabilité est donc laissée à
+l'utilisateur. Le DAO ne ferme jamais la connexion; on peut donc instancier
+autant que DAOs que l'on veut avec la même instance de connexion.
+
+Des classes d'exceptions sont générées avec les DAOs. L'exception
+\textit{NullityException} ne sert que pour les contraintes mentionnées
+précédemment. L'exception \textit{DAOException} sert pour toutes les erreurs
+qui pourraient se produire avec la base de données, au lieu de lancer une
+\textit{SQLException}.
+
+De tout le code que ce projet génère, c'est le code des DAOs qui est le plus
+volumineux et le plus complexe, mais est en contrepartie le plus utile. 
+L'écriture de DAOs est
+une tâche longue et répétitive; c'est ici que l'utilité d'un tel outil se fait
+réellement sentir.
+
+\subsection{Généralités}
+
+Ce projet est un logiciel console, c'est-à-dire qu'il fonctionne par ligne de
+commande. Il prend en paramètre le chemin relatif ou absolu vers le fichier
+de spécifications. Ensuite, dans le répertoire où est situé le fichier de
+spécifications, le script SQL est généré. Toujours dans le même répertoire,
+deux sous-répertoires sont créés, l'un nommé \textit{pojos} et l'autre
+\textit{daos}. Les POJOs sont générés dans le répertoire \textit{pojos}. Les
+DAOs et les classes d'exceptions sont générés dans le répertoire
+\textit{daos}. Chacun des répertoires correspond à un \textit{package} Java
+et chacunes des classes dans ces répertoires contiennent une instruction
+indiquant le \textit{package} auquel elles appartiennent. Aussi, un
+commentaire indiquant que le fichier a été généré avec ce logiciel est présent
+dans l'en-tête de chaque fichier Java.
+
+Il est important de préciser que ce projet ne génère pas une plate-forme de 
+développement
+complète et que toutes les fonctionnalités de persistance qu'un développeur
+peut avoir besoin y sont générées. Le but principal de ce projet est 
+d'accélérer le développement en fournissant une base de code qui doit
+souvent être développée et qui est assez répétitive à faire. Les classes
+générées peuvent être modifiées par l'utilisateur, ou encore il peut se créer
+des sous-classes de ces classes pour en étendre les fonctionnalités sans
+aucune contre-indication.
+
+\section{Planification originale}
+
+Avant de commencer le projet, une certaine planification avait été
+établie. La planification originale diffère quelque peu du déroulement réel du
+projet. Cette section présente la planification originale du projet, le 
+déroulement réel  et les différences avec la planification originale seront 
+discutées plus tard dans ce document.
+
+Le projet devait être un logiciel libre développé sous la license Apache 
+2.0\cite{apache2}. Le développement du projet a été divisé en cinq
+étapes pouvant constituer une application utilisable. Le logiciel devait être
+mis sur Internet après chacune des étapes à partir de la deuxième étape.
+
+Le logiciel devait supporter deux SGBD différents, soient MySQL et 
+Oracle 10g\cite{oracle}. Le projet devait également générer des classes
+Java compilables avec le JDK 6.0. Les classes générées devaient respecter
+les standards de Sun\cite{javacode} et être documentées avec de la
+Javadoc\cite{javadoc}.
+
+Le projet devait être développé selon une méthode de développement itérative
+et incrémentale ainsi qu'une méthode de développement pilotée par les tests.
+Certaines autres techniques et outils pouvaient être expérimentés durant le
+projet.
+
+Une fois le projet complété, une version finale devait être publiée sur
+Internet, fichiers compilés et fichiers sources. La documentation pour
+l'utilisation du logiciel devait être écrite et publiée avec le logiciel.
+
+Le développement du logiciel a débuté au début du mois de juillet 2007. Il
+était originalement prévu que tout ce qui a été précédemment mentionné serait
+complété pour la fin de décembre 2007.
+
+\section{Travaux reliés}
+
+Il existe plusieurs projets plus ou moins semblables à celui-ci. Bien
+qu'aucun produit ne livre exactement ce que ce produit livre, il existe
+différentes alternatives pour différents besoins.
+
+Au niveau de la persistance des objets, la liste des produits similaires est
+longue. Des produits comme Hibernate\cite{hibernate} et 
+iBATIS\cite{ibatis} offrent des plate-formes de développement qui
+mettent en place plusieurs fonctionnalités très intéressantes pour la
+persistance des objets. Ces outils permettent de développer la couche de
+persistance d'une application rapidement mais aussi de la maintenir
+assez facilement. Ils demeurent en général une bonne alternative pour ceux qui
+sont prêts à apprendre à les utiliser correctement. 
+Une précision s'impose : ces outils sont une
+alternative à ce qui est proposé par ce projet, mais ce ne sont pas des
+générateurs de code, ce sont plutôt des plate-formes de développement.
+
+La liste des générateurs de code qui permettent de générer du code SQL et/ou 
+des POJOs, dans différents langages de programmation, est aussi très longue. 
+Par exemple, ModelMaker\cite{modelmaker} permet de générer des POJOs
+Delphi et C\# à partir d'un modèle de classes UML (\textit{Unified
+Modeling Language}). L'application Toad Data Modeler\cite{toad},
+anciennement CASEStudio, permet de générer du code SQL à partir d'un
+modèle de données. Il y a aussi l'outil Rational Rose\cite{rose} d'IBM
+qui permet à la fois de générer le SQL pour une base de données ainsi que de
+générer des POJOs dans différents langages de programmation, notamment Java et
+C++. Ces outils sont très intéressants et souvent très flexibles. Ils
+permettent de générer du code de base de données et du code applicatif simple,
+mais aucun produit ne fournit le code qui va entre les POJOs et le SQL,
+c'est-à-dire le code pour l'exploitation de la base de données, ce qui est 
+l'essence même de ce projet.
+
+\chapter2
+
+Il existe des dizaines de techniques et d'approches applicables pour le
+développement de logiciels, certaines d'entre elles s'appliquant mieux à
+certains contextes que d'autres et un choix judicieux de méthodologie est
+nécessaire avant de démarrer un nouveau projet.
+
+Dans ce chapitre, l'approche de développement utilisée
+lors du développement de ce projet est décrite en détail. Ensuite, la
+planification des itérations du projet est exposée.
+
+\section{Approche de développement}
+
+L'approche de développement expérimentée lors du développement de ce logiciel
+touche deux volets, ou plutôt, deux pratiques qui ont été expérimentées
+simultanément. Ces pratiques sont plus précisément le développement itératif 
+et incrémental et
+le développement piloté par les tests. Puisque ces pratiques touchent deux
+facettes différentes du développement, soit le processus de développement et
+les tests, elles peuvent donc être expérimentées en même temps sans problème.
+D'ailleurs, ce ne sont pas des approches mutuellement exclusives.
+
+Le développement itératif et incrémental constitue une des meilleures
+pratiques de l'analyse et la conception orienté-objet\cite{larman05}.
+Cette pratique vise à diviser le développement d'un logiciel en plusieurs
+étapes de courte durée fixe, nommée une 
+itération\cite{jia03}\cite{larman05}. Chaque itération comporte une
+partie d'analyse des besoins, de conception, de programmation et de tests.
+Le résultat final d'une itération est en général une application fonctionnelle
+et testée, implémentant un sous-ensemble des fonctionnalités grandissant après
+chaque itération. Pour le développement d'un très gros projet, le résultat 
+d'une itération peut ne pas être une application complète et fonctionnelle
+mais elle devrait minimalement fournir au moins une fonctionnalité.
+Une itération est donc gérée comme un petit projet en soi.
+
+Craig Larman définit le cycle de vie itératif comme étant <<fondé sur la
+croissance et l'affinement successifs d'un système par le biais d'itérations
+multiples, le feed-back et l'adaptation cycliques étant les moteurs principaux
+qui permettent de converger vers un système satisfaisant.>>\cite{larman05}
+L'affinement successif dont il est question se fait par 
+refactorisation\cite{brown98}\cite{larman05}.
+L'approche itérative peut aussi bien s'appliquer au développement d'un projet
+entier qu'à une unique partie d'un développement, comme la phase de 
+conception\cite{booch91}. 
+
+Ce qui rend cette approche très
+attrayante, c'est la réduction des erreurs lors de l'analyse des besoins. En 
+effet, souvent, lorsqu'un projet démarre, les besoins ne sont pas tous connus
+à l'avance ou peuvent changer en cours de route. En fonctionnant par itération
+et en présentant ce qui a été développé durant l'itération aux gens concernés,
+l'impact des erreurs d'analyse des besoins est moins grand. Les erreurs sont
+détectées beaucoup plus tôt et il est plus facile d'ajuster le tir en 
+conséquence. D'ailleurs, quelques études ont démontré que les projets
+développés selon une approche itérative ont un meilleur taux de réussite que
+les projets développés selon une approche <<en cascade>>, justement grâce à
+la détection des erreurs plus précoce\cite{larman05}.
+
+Le développement piloté par les tests, quant à lui, est une pratique
+encouragée par le XP 
+(\textit{eXtreme Programming})\cite{beck03}\cite{jia03}\cite{larman05}.
+Selon XP, les tests doivent se faire à deux niveaux : les tests unitaires et
+les tests d'acceptation (tests fonctionnels)\cite{xp}. Bien que XP
+encourage l'utilisation des deux types de tests, uniquement l'utilisation des
+tests unitaires a été expérimentée durant le développement de ce projet.
+
+Les tests unitaires sont des tests très spécifiques. En général, on retrouvera
+une classe de tests pour chaque classe applicative. Pour que le développement
+soit piloté par les tests, les tests doivent être écrits avant que le code qui
+sera mis en production ne soit écrit. L'écriture des tests est à la charge
+du développeur. Une fois les tests écrits, on écrit le
+code à tester et on lance la suite de tests pour vérifier si le code répond
+correctement aux spécifications émises par les tests. Ceci demande une
+certaine gymnastique intellectuelle, puisque l'interface de la classe à tester
+n'a pas encore été définie au moment où les tests sont écrits. Il faut penser
+à tout tester : les cas où ça fonctionne, les cas où ça ne fonctionne pas,
+les cas qui lèvent une exception, les cas limites, etc. En général, plus on a 
+de tests, mieux c'est.
+
+Par exemple, supposons que l'on veut écrire une classe utilitaire ne contenant 
+qu'une seule méthode statique servant à inverser une chaîne de caractères.
+Nous commencerons par écrire une classe de tests pour cette classe 
+particulière. Dans
+la classe de tests, nous devons écrire tous les tests qu'il serait pertinent
+de faire sur une telle méthode, comme par exemple :
+\begin{itemize}
+\item inverser une chaîne de caractères et comparer le résultat avec le résultat
+attendu;
+\item inverser une chaîne contenant des caractères spéciaux;
+\item inverser une chaîne vide;
+\item inverser une chaîne contenant des caractères d'espacement au début,
+à la fin, au début et à la fin et s'assurer qu'aucun espacement n'est perdu.
+\end{itemize}
+Une fois les tests écrits, nous écrivons la classe et lançons la suite de tests
+sur la classe. Si certains tests échouent, il faut en trouver la raison. Il 
+peut y avoir un problème dans le code de la classe, mais le problème peut
+aussi se trouver dans le code du test. Une fois les problèmes corrigés, on peut
+mettre la classe en production et l'utiliser.
+
+Selon XP, tout le code de production devrait avoir ses tests unitaires et tout
+le code doit passer ses tests unitaires avant d'être mis en production. Aussi,
+lorsqu'un nouveau \textit{bug} est trouvé, un (ou plusieurs) nouveau cas de
+test doit être fait pour couvrir ce cas particulier\cite{xp}. Il
+existe plusieurs outils d'intégration continuelle permettant de lancer
+automatiquement les suites de tests sur le code après un changement des
+fichiers sources. Un de ces outils, très populaire, est 
+CruiseControl\cite{cruise}.
+
+\section{Itérations}
+
+Le projet devait se faire en cinq itérations. Toutes les itérations, sauf
+la première, devaient fournir une application fonctionnelle et chaque itération
+allait rajouter un morceau à l'application en développement.
+
+\begin{itemize}
+\item La première itération servait à définir la grammaire du langage de 
+spécification. Pour ce faire, il était nécessaire de faire un prototype du
+code qui allait être généré par l'application et, bien entendu, de le tester.
+Une fois les prototypes écrits et testés, la grammaire du langage de
+spécification a pu être établie.
+\item La deuxième itération servait à développer la génération du code SQL.
+\item La troisième itération servait à développer la génération des POJOs
+Java.
+\item La quatrième itération servait à développer la génération des DAOs en
+Java avec JDBC.
+\item Finalement, la cinquième itération servait à générer de la documentation
+pour chaque classes Java générées. La documentation devait être générée
+directement dans le code sous la forme de commentaires Javadoc.
+\end{itemize}
+
+\chapter3
+
+Différentes techniques et méthodes ont été expérimentées durant 
+le développement de ce projet, couvrant autant l'approche de développement,
+le cycle de vie du logiciel, la façon de tester l'application que la façon de
+documenter le code écrit. Plus spécifiquement, les expérimentations ont été
+faites sur :
+\begin{itemize}
+\item le développement itératif et incrémental;
+\item le développement piloté par les tests;
+\item le prototypage;
+\item les tests unitaires;
+\item l'utilisation d'un gestionnaire de versions;
+\item l'application de normes de programmation et de documentation;
+\item l'utilisation d'un générateur de code;
+\item l'utilisation d'un outil de construction de logiciel.
+\end{itemize}
+
+Ce chapitre décrit la façon dont les différentes expérimentations ont été
+effectuées et les impacts qu'elles ont eus sur le développement du projet,
+la qualité, la robustesse et la clarté du code ainsi que sur la productivité
+du développeur.
+
+\section{Développement itératif et incrémental}
+
+L'approche du développement itératif et incrémental a été suivie durant tout
+le projet. À une exception près, toutes les règles mentionnées
+précédemment ont été respectées. 
+
+Le projet a été divisé selon cinq itérations distinctes, chaque itération ne se
+préoccupant pas de l'itération suivante. Plus précisément, aucun travail en
+prévision du futur n'était effectué, uniquement le minimum pour répondre
+aux exigences. Chaque itération comportait une partie d'analyse des besoins,
+de conception et de refactorisation si cela s'avérait nécessaire, 
+d'implémentation et
+de tests. En effet, l'affinement progressif du logiciel était fait par
+refactorisation au fur et à mesure du développement, lorsque nécessaire ou
+simplement pour diminuer la quantité de code, diminuer le couplage entre les
+classes ou améliorer la cohésion d'une classe. Puisque chaque itération
+amenait son lot de nouvelles fonctionnalités, la conception des classes
+était en constante évolution. En bout de ligne, le produit fini est beaucoup
+plus clair, facile à lire et à comprendre et donc plus facile à maintenir.
+
+La règle qui dit que chaque itération doit être d'une durée fixe n'a pas été
+respectée. Puisque le projet était développé à temps partiel, sur plusieurs
+mois et par un seul développeur, il était difficile de mettre en place un
+mécanisme d'itérations à durée fixe. Par contre, en terme de fonctionnalités
+et en terme de temps de développement (et non de temps écoulé), on peut dire
+que les itérations étaient quand même de courte durée, mais variables.
+
+Le fait d'avoir une application fonctionnelle après chaque itération était
+très motivant. Dans le cadre de ce projet, il n'y avait pas de client à qui
+montrer le développement et d'où tirer du \textit{feed-back}, mais le fait
+d'avoir une application fonctionnelle testable après une itération était
+un facteur de motivation pour le développeur. Le sentiment du <<devoir
+accompli>> vient plus rapidement au développeur que lors d'un développement
+selon le modèle en cascade.
+
+Puisque chaque itération possède sa phase de tests, les erreurs ont été
+détectées plus tôt, ce qui a permis de les corriger immédiatement et d'éviter
+de reporter l'erreur sur le code qui n'était pas encore écrit.
+
+Lorsqu'appliqué correctement, le développement itératif et incrémental
+utilisé de pair avec de bonnes pratiques de refactorisation constitue une
+excellente façon de développer du logiciel. Il est particulièrement pénible
+après une telle expérimentation de développer un nouveau projet selon la 
+méthode en cascade. Il est clair que cette approche est là pour rester.
+
+\section{Développement piloté par les tests}
+
+Le développement piloté par les tests a uniquement été fait à l'aide de tests
+unitaires durant le développement du projet et a été appliqué comme l'indique
+les pratiques du XP, à quelques nuances près. XP propose d'écrire les tests
+avant même d'avoir écrit l'interface de la classe à tester; de cette façon le
+développeur est confronté une première fois à la réflexion au sujet de 
+l'interface de sa classe. Souvent, l'interface a déjà été définie au niveau
+de la conception de la classe. Dépendamment des pratiques de développement
+de logiciels utilisées, il est possible que la phase de conception se fasse
+en même que la programmation de la classe.
+
+Durant le développement de ce projet, l'approche choisie était quelque peu
+différente. L'interface de la classe était d'abord définie et un squelette de
+classe avec des déclarations de méthodes était programmée. La documentation
+de ces méthodes était aussi écrite dans la classe mais aucune méthode ne
+contenait des instructions. Une fois le squelette de classe écrit, les tests
+unitaires sur la classe l'étaient également. Ensuite, les méthodes de la classe
+étaient implémentées, en modifiant la documentation et les tests au fur et à
+mesure si l'interface venait à changer en cours de route. Finalement, les tests
+étaient exécutés sur la classe (en fait, toutes les suites de tests de toutes
+les classes étaient lancées) et les ajustements au code et aux tests étaient
+faits si nécessaire. Dans le cas d'une modification d'une classe existante pour
+y ajouter des fonctionnalités, le même principe était appliqué, c'est-à-dire
+la modification de l'interface de la classe, la programmation des tests,
+la modification du code de la classe et finalement l'exécution des tests et
+les corrections. Évidemment, à chaque fois qu'une erreur était trouvée, un
+test unitaire était ajouté afin de couvrir ce cas.
+
+Cette méthode favorise beaucoup la réflexion face à la conception des classes.
+La présence d'une banque de tests volumineuse est intéressante puisque les 
+erreurs sont détectées assez rapidement et plus une erreur logicielle est
+découverte tôt, moins elle coûte cher à réparer\cite{tremblay04}. D'un
+autre côté, cette méthode consomme beaucoup de temps au développeur de la
+classe.
+
+Pour des fins d'expérimentation, il a été décidé d'abandonner cette pratique
+pour vérifier l'impact sur le développement du projet. À partir de ce moment-là,
+plus aucun test unitaire n'a été écrit. La vitesse de développement de 
+l'application s'est grandement accrue. On aurait pu s'attendre à avoir plus
+de problèmes et d'erreurs logiciels vers la fin du développement, en 
+attrapant toutes les erreurs non découvertes auparavant, mais ce ne fut pas le
+cas. Le développement s'est terminé sans découverte d'erreur majeure et les
+erreurs trouvées en chemin ont été faciles à corriger.
+
+Il est important de mentionner que ce projet couvre le développement d'une
+nouvelle application; aucune maintenance n'a été faite sur l'application dans
+le cadre de ce projet. Il faut aussi considérer qu'il s'agit d'une
+petite application et qu'elle n'a été développée que par une seule personne.
+
+Durant le développement de ce projet, l'utilisation du
+développement piloté par les tests n'a pas eu un gros impact comparativement
+au développement standard. Plusieurs hypothèses peuvent expliquer ce résultat.
+Parmi celles-ci, citons la taille du projet et le nombre de développeurs 
+impliqués. Les
+probabilités d'erreurs sont déjà plus minces puisque le développeur unique
+a écrit la totalité du code de l'application. La quantité de code source n'étant
+pas assez grande pour que le développeur y soit perdu ou que certaines parties
+de code lui soient totalement inconnues. Finalement, le développement ne s'est 
+pas
+déroulé sur une très grande période de temps (comparativement à un projet de 3
+ans de développement avec une dizaine de développeurs). Dans ce contexte, il
+est plus facile de déceler une erreur introduite suite à la modification d'une
+classe. 
+
+Une autre hypothèse non négligeable est que la totalité (ou même la majorité)
+des erreurs dans le logiciel n'a toujours pas été détectée, bien que les tests
+fonctionnels aient été assez complets et appliqués de façon rigoureuse.
+
+En somme, le développement piloté par les tests est une pratique assez coûteuse
+en temps. Elle n'est pas conseillée pour un petit projet sans maintenance mais
+elle risque d'avoir une très bonne valeur ajoutée dans un projet de longue
+haleine, impliquant plusieurs développeurs, et qui devra être maintenu sur
+une longue période (plusieurs années).
+
+\section{Prototypage du code généré}
+
+Au tout début du projet, il n'était pas prévu d'écrire des prototypes
+de classes et de script SQL représentant ce qui devrait être généré par le
+générateur de code. Le projet débutait par la définition de la grammaire du
+métalangage du générateur. Il était nécessaire, afin de s'assurer que le
+métalangage soit complet et contienne tout ce qui était requis pour
+générer tout le code voulu, d'écrire les prototypes.
+
+En plus d'offrir une possibilité de réflexion et de correction de la grammaire
+du métalangage, les prototypes permettent de tester le matériel à générer afin
+de s'assurer qu'il est exempt d'erreurs et qu'il ne manque pas de 
+fonctionnalités\cite{budgen03}\cite{coad91}.
+
+L'écriture des prototypes a prolongé le temps de développement de la première
+itération, mais cet investissement était nécessaire. L'écriture des prototypes
+a grandement favorisé la réflexion sur le code généré et plusieurs décisions
+concernant la conception des classes générées ont été révisées. Par exemple,
+la première idée concernant la gestion des clés primaires (identifiants 
+uniques) lors de l'ajout d'un nouvel enregistrement à la base de données ne
+fonctionnait pas correctement. Le prototypage a permis de déceler cette erreur
+de conception. Bien sûr, le prototypage contient une bonne série de tests sur
+les classes, ce qui permet de trouver plusieurs petites erreurs de conception
+des classes. 
+
+Le prototypage du script SQL a lui aussi permis de trouver une solution à
+un problème important. Le problème est l'ordre dans lequel il faut générer les
+instructions de déclaration de table en considérant les relations entre les
+tables, car une table ne peut avoir une clé étrangère que sur une table qui
+a déjà été déclarée auparavant. La solution est très simple et bien connue : il
+s'agit d'ajouter les identifiants qui serviront de clés étrangères aux tables
+qui en auront, de générer les tables dans n'importe quel ordre et de définir
+les contraites d'intégrité à l'aide d'instructions \textit{ALTER TABLE} après
+les déclarations de tables. Bien que cette solution soit bien connue, ce
+problème n'avait pas été abordé ni pensé au départ; c'est plus précisément à la 
+génération
+du code SQL que le problème serait survenu. À ce niveau, la correction aurait
+été beaucoup plus compliquée à effectuer.
+
+Un autre point important est de pouvoir vérifier l'utilisabilité des éléments
+générés. L'utilisation des classes générées a aussi permis de lever de petits
+problèmes, c'est-à-dire que les classes fonctionnaient mais
+elles étaient difficiles à utiliser. Avec quelques légères modifications aux
+classes prototypées (qui ne seront pas plus difficiles à générer par le
+générateur de code), la facilité d'utilisation des classes générées a été
+grandement améliorée.
+
+Pour terminer, le prototypage du code généré a été une étape cruciale et 
+essentielle pour le bon déroulement du projet. Il est fort probable que sans cette
+étape, le projet n'aurait pas pu être utilisable, ou sinon, il serait 
+beaucoup plus
+compliqué à utiliser.
+ 
+\section{Stratégie de tests}
+
+La stratégie de tests de l'application est en trois étapes :
+\begin{itemize}
+\item les tests du prototype;
+\item les tests unitaires du code de l'application;
+\item les tests fonctionnels (finaux).
+\end{itemize}
+
+Comme il a été mentionné précédemment, le prototypage du code généré permet de
+s'assurer que le code qu'on va générer ne contient pas d'erreur de compilation
+et qu'il fonctionne selon le résultat attendu. Évidemment, puisque le 
+prototype est une série de classes complètes, il est alors intéressant de les
+tester correctement.
+
+Tout d'abord, pour tester les classes du prototype, des classes de tests 
+unitaires ont été
+créées pour chacune des classes testables du prototype (c'est-à-dire les POJOs
+et les DAOs, en excluant les classes d'exception). En plus des tests unitaires,
+des tests fonctionnels ont été faits sur le prototype afin de s'assurer que le
+code généré soit utilisable pour un projet réel. Un petit projet a alors été
+construit avec le prototype de code généré pour en tester l'utilisabilité. Ce
+test a d'ailleurs permis de déceler des erreurs dans le prototype, des erreurs
+de programmation et aussi des fonctionnalités manquantes. Par exemple, les
+POJOs contiennent les identifiants pour les relations des entités, mais dans les
+deux sens de la relation. Au départ, seulement un sens de la relation avait été
+prévu, c'est-à-dire le sens de l'implémentation de la relation au niveau de la
+base de données. En testant le prototype avec un petit projet, il est devenu
+évident qu'il était beaucoup plus pratique d'avoir les relations dans les deux
+sens plutôt que dans un seul sens, augmentant ainsi de beaucoup l'utilisabilité
+du code généré.
+
+Ensuite, le code du projet est testé à l'aide de tests unitaires. La prochaine
+section traite de ce point de façon plus précise.
+
+Finalement, l'application a été mise à l'épreuve afin d'en tester les
+fonctionnalités. Un projet très simple, ne servant qu'à saisir des données dans
+un formulaire à l'écran, stocker les données dans une base de données et
+afficher les données lorsque désiré (comme beaucoup de projets réels en 
+informatique de gestion) a été fait au complet avec ce projet. Le projet de
+test comportait six entités à persister dans la base de données, dont le
+fichier d'entrée, codé selon le métalangage mentionné précédemment, comportait
+six définitions d'entité. L'application généra donc un script SQL 
+comprenant sept tables (il y avait une relation \textit{plusieurs-à-plusieurs}
+entre deux entités), et quatorze classes Java (six POJOs, six DAOs et deux
+classes d'exception). Avec environ une page de métalangage, l'application a
+généré près de trente-cinq pages de code (SQL et Java confondus). Un peu de
+code a été écrit afin d'utiliser les classes générées et aucune erreur
+fonctionnelle n'a été trouvée à ce niveau, les erreurs importantes ayant été
+trouvées au niveau des tests du prototype.
+
+\section{Tests unitaires}
+
+L'utilisation des tests unitaires est un sujet fréquemment discuté dans la
+littérature. Ils offrent la possibilité de tester complètement un programme
+sans aucune intervention humaine (si les tests unitaires sont déjà écrits,
+bien entendu) et leur utilisation est beaucoup plus facile et agréable que les
+autres techniques comme les tests dans un \textit{debugger} ou l'affichage
+de traces à la console du programme\cite{beckgamma}.
+
+Tous les tests unitaires qui ont été développés durant ce projet ont été faits
+pour l'outil JUnit 4.1\cite{junit}. Il existe plusieurs plate-formes
+pour le développement de tests unitaires. Il est pratique courante 
+d'utiliser JUnit pour les tests unitaires en Java, d'autant plus que JUnit est
+parfaitement intégré à l'environnement de développement intégré 
+Eclipse\cite{eclipse}, utilisé pour développer ce projet.
+
+Le fonctionnement de JUnit est assez simple. Une classe JUnit peut tester
+absolument n'importe quoi mais la pratique veut qu'une classe de tests ne teste
+qu'une seule classe applicative. Les cas de tests sont codés dans des méthodes
+et d'autres méthodes d'initialisation et de terminaison des tests sont
+fournies par la plate-forme. On peut lancer l'exécution d'une classe de tests ou 
+d'une suite de
+tests. Une suite de tests est un ensemble de classes de tests. Par exemple,
+on peut n'avoir qu'une seule suite de tests contenant un lien vers toutes les
+classes de tests et lancer cette suite de tests après chaque modification de
+l'application.
+
+Une méthode dans une classe de tests peut contenir une ou plusieurs 
+vérifications, faites sous la forme d'assertions fournies par la plate-forme.
+Dans le cadre de ce projet, une seule vérification est effectuée par
+méthode. Le nombre de cas de test est plus élevé mais les cas testés sont
+facilement identifiables et le code est plus lisible de cette façon.
+
+La figure \ref{fig:unittest} présente un cas de test du projet. La classe
+contenant cette méthode sert à tester la classe \textit{RelationAnalyzer}, qui
+elle sert à analyser les relations entre les entités dans le fichier de
+spécifications en métalangage. Dans ce cas-ci, une spécification erronée au
+niveau des relations entre les entités est donnée au générateur; le test
+réussi si la bonne exception (\textit{MultipleRelationException}) est levée.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+/**
+ * Test the multiple relation exception.
+ */
+public final void testMultipleRelation() {
+    PushbackReader reader;
+    boolean success = false;
+    try {
+        reader = new PushbackReader(new BufferedReader(
+            new FileReader("src\\test_files\\multiple_relation.txt")));
+        Lexer lexer = new Lexer(reader);
+        Parser parser = new Parser(lexer);
+        Node ast = parser.parse();
+        reader.close();
+        GlobalInformations global = new GlobalInformations();
+        ast.apply(new EntityAndFieldExplorer(global));
+        RelationExplorer relationExp = new RelationExplorer();
+        ast.apply(relationExp);
+        RelationAnalyzer.analyse(global, relationExp.getRelations());
+    } catch (MultipleRelationException e) {
+        success = true;
+    } catch (Exception e) {
+        fail("Not supposed to fail.");
+    }
+    assertTrue(success);
+}
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de test unitaire avec JUnit.}
+\label{fig:unittest}
+\end{figure}
+
+Il a été constaté durant ce projet que l'écriture de tests unitaires consomme
+beaucoup de temps. Un générateur de squelettes de tests unitaires JUnit est
+disponible avec Eclipse, ce qui rend l'écriture des classes de tests un peu
+plus rapide.
+
+JUnit est merveilleusement bien intégré à Eclipse, et son utilisation dans
+Eclipse (lancer des tests par exemple) est d'une facilité déconcertante. 
+La syntaxe à
+utiliser pour l'écriture des classes de tests est simple et bien documentée. De
+plus, le générateur de squelettes de classes JUnit d'Eclipse nous facilite
+vraiment la tâche à ce niveau. Il s'agit d'un outil facile à utiliser et
+facile à apprendre; son utilisation est fortement recommandée si le besoin de
+tests unitaires se fait sentir.
+ 
+\section{Gestionnaire de versions}
+
+Un gestionnaire de versions est un logiciel permettant de gérer les fichiers
+sources d'un projet de développement de logiciel. Il y a plusieurs 
+fonctionnalités intéressantes incitant l'utilisation d'un gestionnaire de 
+versions dans un projet.
+\begin{description}
+\item[Le développement concurrent] Un gestionnaire de versions permet à tous
+les membres d'une équipe de développement de modifier les fichiers sources
+de façon concurrente, ce qui règle tous les problèmes d'écrasement de
+modifications et de réécriture de partie de code en double qui surviennent
+lorsqu'on gère les versions de fichiers sources manuellement.
+
+\item[Retour arrière] Tous les ajouts, toutes les suppressions et toutes les
+modifications apportés à un fichier source sont enregistrés par le gestionnaire
+de versions. Cette fonctionnalité permet donc de recouvrir une ancienne
+version d'un fichier lorsqu'on découvre qu'une modification introduit une
+erreur dans le logiciel. Il est aussi possible de récupérer un morceau de code
+éliminé dans le passé s'il est à nouveau pertinent de ravoir ce bout de code.
+
+\item[Branchements] Il est possible de créer différents branchements d'une
+version d'un logiciel afin d'en avoir différentes versions séparées. Cette
+fonctionnalité est très utile pour des logiciels développés sur plusieurs
+années, avec plusieurs versions publiées qui sont toujours maintenues.
+
+\item[Historique] Il est possible en tout temps de consulter la liste des
+modifications que le fichier a subi depuis sa création. Il est aussi possible
+de savoir quel développeur a fait quelle modification et à quel moment.
+
+\item[Sécurité] En installant le gestionnaire de versions sur un autre poste
+que ceux utilisés pour le développement (donc, un serveur de développement),
+les fichiers sources sont sauvegardés sur le serveur. De cette façon, il
+existe toujours une copie de sauvegarde des fichiers sources à quelque part.
+Même pour les projets avec un développeur unique, il est conseillé d'installer
+le gestionnaire de versions sur une autre machine que celle utilisée pour le 
+développement. Il s'agit d'une sécurité supplémentaire pour éviter de perdre
+les fichiers sources lorsqu'une défaillance du matériel survient.
+\end{description}
+
+Un gestionnaire de version a bien sûr été utilisé durant le développement de
+ce projet. Le gestionnaire utilisé est Subversion\cite{subversion},
+un outil de plus en plus populaire et en constante amélioration. Il a été
+installé sur un serveur de développement avec le système d'exploitation Linux.
+Le serveur en question est une machine qui date de 1998. Pour un projet de
+cette envergure, il n'est pas nécessaire d'avoir une machine très performante.
+En contrepartie, il vaut mieux avoir un serveur que de garder tous les 
+fichiers du projet
+localement. Subversion, pour son utilisation dans ce projet, s'est avéré très
+facile à installer et à configurer.
+
+Il est possible de tout faire les traitements de fichiers dans Subversion à
+l'aide de commandes à la console. Pour ce projet-ci, un \textit{plug-in} pour
+Eclipse, nommé Subclipse\cite{subclipse}, a été installé pour intégrer
+Subversion à Eclipse. À partir de ce moment-là, il a été possible d'effectuer
+toutes les interactions voulues avec Subversion à partir du GUI 
+(\textit{Graphical User Interface}) d'Eclipse. Ce produit est excessivement
+facile à utiliser et à apprendre. Son apprentissage pour ce projet s'est fait
+en moins d'une demi-heure et aucune lecture de documentation n'a été
+nécessaire.
+
+Tous les avantages mentionnés précédemment sont suffisants pour motiver
+l'utilisation d'un gestionnaire de version. Il s'agit très clairement d'une
+bonne pratique du développement de logiciels. Il s'agissait d'une première
+expérience d'utilisation d'un gestionnaire de versions pour le développeur
+de ce projet et maintenant il semble tout à fait inconcevable de développer
+du logiciel sans utiliser un tel outil. On peut même étendre un tel outil au
+versionnage de document. Par exemple, ce présent document est rédigé dans un
+fichier texte avec la syntaxe de LaTeX\cite{latex} (LaTeX étant un
+générateur de documents) et le fichier source de LaTeX (le \textit{.tex}) est
+versionné avec Subversion.
+
+\section{Normes de programmation et de documentation du code}
+
+Les normes de programmation ont pour but de diminuer le <<style>> des
+programmeurs en uniformisant le code. Un code plus uniforme est plus facile
+à lire et la maintenabilité en est donc accrue\cite{mcconnell05}. Bien sûr,
+c'est beaucoup plus applicable aux projets faits par plusieurs développeurs ou
+bien aux projets développés par une équipe et maintenus par une autre.
+
+Dans le cadre de ce projet, des normes de programmation ont été appliquées,
+même si tout le développement n'a été fait que par un seul développeur. La
+raison en est simple, l'application est destinée à devenir un logiciel libre et
+un code uniforme va être plus facile à lire pour quiconque. 
+Pour que ceci soit valide, il faut que les normes appliquées représentent la
+pratique générale; c'est pourquoi les normes de programmation Java de 
+Sun\cite{javacode} ont été appliquées.
+
+Bien que cette liste ne soit pas exhaustive, voici quelques points
+importants des normes de Sun.
+\begin{itemize}
+\item Les mots réservés suivis d'une parenthèse ouvrante (\textit{if},
+\textit{while}, \textit{for}) doivent être suivis d'un espace (entre le mot
+et la parenthèse).
+\item Les accolades ouvrantes doivent être sur la même ligne de code que
+l'instruction qui provoque l'ouverture d'un bloc.
+\item L'indentation doit être de 4 espaces.
+\item Aucune tabulation n'est permise dans l'indentation.
+\item Aucun espace entre une parenthèse ouvrante et le mot qui suit n'est
+toléré, ni
+entre un mot et une parenthèse fermante.
+\item Une virgule doit être suivie d'un caractère d'espacement.
+\item Les noms de variables doivent commencer par une lettre minuscule et les
+noms de classes doivent commencer par une lettre majuscule.
+\end{itemize}
+Le document de normes en contient cependant beaucoup plus. La 
+figure \ref{fig:standards} présente un exemple de fonction respectant les 
+normes de Sun.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+    private static void transformFields(final String entityName,
+                        final Collection<FieldInformations> fields) {
+        Hashtable<String, FieldInformations> producedNames =
+                            new Hashtable<String, FieldInformations>();
+        for (FieldInformations field : fields) {
+            String codeName = transformIdentifier(field.getOriginalName(),
+                                                  false);
+            FieldInformations possibleDuplicate = 
+                                      producedNames.get(codeName);
+            if (possibleDuplicate != null) {
+                throw new AmbiguousFieldNameException(
+                                    field.getOriginalName(),
+                                    possibleDuplicate.getOriginalName(),
+                                    entityName, "code", codeName);
+            }
+            field.setCodeName(codeName);
+            producedNames.put(codeName, field);
+            char[] workingName = codeName.toCharArray();
+            workingName[0] = Character.toUpperCase(workingName[0]);
+            String capitalized = new String(workingName);
+            field.setGetterName("get" + capitalized);
+            field.setSetterName("set" + capitalized);
+        }
+    }
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple d'application des normes de Sun.}
+\label{fig:standards}
+\end{figure}
+
+Il est ardu pour un développeur de mémoriser la totalité d'un document de
+normes, et plus le document est important, plus c'est laborieux. Heureusement,
+il existe des outils pour aider les développeurs dans cette tâche. Durant le
+développement de ce projet, c'est l'outil Checkstyle\cite{checkstyle}
+qui a été utilisé. Checkstyle a été intégré à Eclipse à l'aide du 
+\textit{plug-in}
+eclipse-cs\cite{eclipsecs}.
+
+Par défaut, Checkstyle vérifie le code Java selon les normes de Sun, mais il
+est possible de créer des fichiers de configuration qui permettent de
+modifier les normes à notre guise. Le fichier de configuration n'est pas très
+complexe mais eclipse-cs offre un GUI très riche et facile à utiliser pour
+configurer Checkstyle dans Eclipse.
+
+Checkstyle fait une analyse du code à chaque sauvegarde du fichier source pour
+vérifier s'il y a des violations de normes dans le code du fichier. Lorsqu'une
+violation est repérée, un avertissement (identique à un avertissement du
+compilateur) est affiché à l'écran. L'avertissement indique la violation
+faite ainsi que la ligne qui l'effectue.
+
+Il s'agit d'un outil vraiment facile à utiliser et à installer. Il est très
+peu probable qu'un développeur retienne complètement en mémoire un document de 
+normes comme celui de Sun. Par conséquent, l'utilisation d'un outil comme 
+Checkstyle
+est indispensable pour tout projet voulant appliquer les normes de
+programmation à son code.
+
+Au niveau de la nomenclature, il a été décidé que tous les noms
+de classes, de variables et de fonctions allaient être en anglais. 
+La langue prédominante
+dans le monde du développement de logiciels est l'anglais et puisque le
+logiciel est destiné à devenir un logiciel libre, le choix de cette langue 
+comme langue de développement s'imposait. 
+Évidemment, un outil comme Checkstyle ne peut pas vérifier la langue d'un
+identifiant dans le code, ni la pertinence de l'identifiant pour qu'il soit
+facile à comprendre; cela reste donc la responsabilité du développeur.
+
+Concernant les commentaires dans le code, une distinction entre la
+documentation et les commentaires a été faite. La documentation est un
+commentaire explicatif d'une variable membre, d'une méthode ou d'une classe.
+Par exemple, lorsque la documentation est faite avec de la Javadoc, tout ce
+qui est généré dans l'aide est de la documentation. Un commentaire expliquant
+une <<passe de programmeur>> (un \textit{code hack} en anglais) dans une
+méthode n'est pas de la documentation, mais bien un commentaire. 
+L'approche des commentaires dans ce projet est la suivante : si un 
+commentaire est nécessaire pour expliquer une partie de code, c'est signe que
+le code a besoin d'être simplifié en étant refactorisé ou 
+réécrit\cite{mcconnell05}. C'est pour cette raison qu'il n'y a aucun 
+commentaire dans le code.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+/**
+ * Contains all the informations about a field. A field is contained
+ * within an entity.
+ */
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de documentation Javadoc d'une classe.}
+\label{fig:javadocclass}
+\end{figure}
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+/**
+  * A list of the fields concerned by this unicity constraint.
+  */
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de documentation Javadoc d'une variable membre.}
+\label{fig:javadocvar}
+\end{figure}
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+/**
+ * Performs these transformations:
+ * 1. Every character immediatly following a _ is capitalized.
+ * 2. Every other characters are not capitalized.
+ * 3. Every _ are removed.
+ * 4. If firstCharCapital is true, the first character is capitalized.
+ * @param identifier The string to transform.
+ * @param firstCharCapital true if the first character must be capitalized,
+ *                         false otherwise.
+ * @return The transformed string.
+ */
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de documentation Javadoc d'une méthode.}
+\label{fig:javadocmethod}
+\end{figure}
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+/**
+ * Exception raised when a definition in an entity is refering to a field
+ * that does not exist.
+ */
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{Exemple de documentation Javadoc d'une classe d'exception.}
+\label{fig:javadocexception}
+\end{figure}
+
+Toutes les classes, les méthodes et les variables membres ont été documentées
+avec de la Javadoc. Pour les mêmes raisons que la nomenclature, toute la 
+documentation a été écrite en anglais. Voici la façon dont ces éléments ont
+été documentés.
+\begin{description}
+\item[Classe] La documentation d'une classe doit décrire à quoi sert la
+classe. La figure \ref{fig:javadocclass} présente un exemple de documentation
+d'une classe.
+\item[Variable membre] La documentation d'une variable membre doit décrire à 
+quoi sert la variable, et non indiquer son nom ou son type. La figure
+\ref{fig:javadocvar} présente un exemple de documentation d'une variable
+membre.
+\item[Méthode] La documentation d'une méthode doit décrire à quoi sert la
+méthode. Elle doit aussi décrire la signification de chacun des paramètres et
+la valeur de retour, ainsi que les exceptions qui peuvent être levées dans la
+méthode. La figure \ref{fig:javadocmethod} présente un exemple de documentation
+d'une méthode.
+\item[Classe d'exception] La documentation d'une classe d'exception doit
+décrire le contexte dans lequel l'exception peut être levée. La figure
+\ref{fig:javadocexception} présente un exemple de documentation d'une classe
+d'exception.
+\end{description}
+
+Checkstyle est encore utile à ce niveau. Il est possible d'y spécifier
+que tout soit documenté. Par exemple, si un paramètre d'une méthode 
+n'a pas été documenté, un avertissement est affiché. Checkstyle ne permet pas
+de déclarer un bloc Javadoc et de laisser vide la documentation d'un élément.
+
+\begin{figure}[tb]
+\begin{MyMinipage}
+\begin{CodeSource}
+/* Copyright 2007 Jacques Berger
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+       http://www.apache.org/licenses/LICENSE-2.0
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+\end{CodeSource}
+\end{MyMinipage}
+\vspace{-1em}
+\caption{En-tête de fichier source.}
+\label{fig:license}
+\end{figure}
+
+Tous les fichiers sources du projet, incluant les classes de tests, ont le
+même en-tête. Cet en-tête est celui de la licence Apache 2.0, présenté par
+la figure \ref{fig:license}. Encore une fois, Checkstyle permet de contrôler
+que tous les fichiers possèdent cet en-tête, ce qui prouve la flexibilité de
+l'outil.
+
+L'utilité de la documentation n'est plus à prouver dans un projet logiciel et,
+considérant cet état de fait, une expérience a été tentée durant le 
+développement de ce 
+projet. L'expérimentation en question visait à tout documenter dès le début
+du projet et d'arrêter approximativement à la moitié du projet de documenter
+les modifications au code et le nouveau code.
+
+L'effet de cette expérimentation a été instantané. Après seulement quelques
+jours, il était déjà plus difficile d'écrire du code pour le projet.
+Constamment, le développeur avait à lire une méthode au complet afin de
+savoir à quoi elle servait ou pour vérifier les cas particuliers et les cas
+limites de la méthode, ce qui devait se trouver dans la documentation de la
+méthode. Le développement du projet a été effectué à temps partiel et sur
+plusieurs semaines. Aussi, il pouvait s'écouler une ou deux semaines complètes
+sans que le développeur n'ajoute une seule ligne de code dans le projet, ce qui
+lui donnait amplement le temps d'oublier comment les méthodes avaient été
+écrites et à quoi les variables membres servaient exactement. Après seulement
+deux semaines à développer (toujours à temps partiel) sans documenter, il
+était devenu tellement difficile de modifier le code que cette expérience a
+dû prendre fin. Les éléments non documentés ont été documentés et le
+développement a pu se poursuivre normalement.
+
+Cette expérience amène une constatation intéressante. La documentation dans un
+projet, peu importe sa taille et le nombre de développeurs impliqués, n'est pas
+une option. Il est nécessaire de tout documenter. La documentation doit 
+constamment être maintenue à jour. Il est connu qu'une bonne documentation
+accroît la maintenabilité d'un projet\cite{mcconnell05}, mais cette
+expérimentation nous montre que la documentation a aussi un impact important
+sur la productivité des développeurs.
+
+\section{Utilisation d'un générateur de code}
+
+Un générateur de code a été utilisé durant le développement de ce projet. Le
+générateur de code a été utilisé pour les mêmes raisons qu'un développeur
+utiliserait ce projet-ci, c'est-à-dire pour :
+\begin{itemize}
+\item générer une longue partie de code qui est essentielle;
+\item accélérer le développement;
+\item se déresponsabiliser d'une partie de la maintenance car le code
+généré est habituellement exempt d'erreurs.
+\end{itemize}
+La longue partie de code à développer, dans ce cas-ci, est l'analyseur
+syntaxique. En effet, puisque le programme prend un fichier de spécifications
+en entrée et que les spécifications doivent respecter une grammaire précise,
+il serait nécessaire de créer plusieurs classes de manipulations de
+chaînes de caractères et de fichiers. Ces classes devraient être testées à
+fond et elles contiendraient sans aucun doute plusieurs erreurs, sans compter
+le temps qu'il faudrait investir pour développer cette fonctionnalité.
+
+Le code d'un analyseur syntaxique est assez simple pour pouvoir être
+généré par un générateur de code\cite{appel02}. Le générateur 
+d'analyseur syntaxique utilisé dans ce projet est 
+SableCC\cite{sablecc}. Ce générateur produit un analyseur syntaxique
+en Java à partir d'un fichier source spécifiant les mots-clés et la grammaire
+du langage.
+
+SableCC est facile à installer sur une machine et il est aussi facile à 
+utiliser (c'est-à-dire de lancer la génération de l'analyseur syntaxique). Il
+existe un \textit{plug-in} Eclipse pour SableCC mais il n'a pas été essayé
+durant ce projet; la génération était lancée à partir d'une console. Bien
+qu'il soit facile à utiliser, SableCC est l'outil le plus complexe utilisé
+dans le cadre de ce projet. La grammaire de SableCC est bien documentée mais
+lorsqu'un conflit dans la grammaire fait surface, la documentation n'est pas
+d'un grand secours et les conflits sont souvent complexes à résoudre.
+
+Le code généré par SableCC n'est pas documenté; il ne respecte pas tous les
+standards de Sun et il est souvent complexe. Par contre, ce code n'est pas
+destiné à être lu par les développeurs et encore moins à être maintenu. Les
+classes générées sont placées dans 4 \textit{packages} bien précis et
+lorsqu'il est nécessaire d'apporter une modification à l'analyseur syntaxique,
+la meilleure approche est de supprimer les \textit{packages}, de modifier
+le fichier source et de regénérer l'analyseur syntaxique.
+
+SableCC est un outil plus long à apprendre comparativement aux autres outils
+qui ont servi au développement de cette application. Par contre,
+l'investissement de temps fait pour l'apprentissage de SableCC a été très 
+payant. L'outil est plus complexe que les autres mais il est particulièrement
+puissant. Son utilisation a eu un grand impact sur la productivité du
+développement. Il est fort probable que le même projet aurait nécessité 
+facilement
+deux fois plus de temps à développer et à tester sans l'utilisation de
+SableCC. Son utilisation est fortement recommandée pour tout projet Java
+nécessitant la création d'un langage propriétaire.
+
+\section{Utilisation d'un outil de construction de logiciel}
+
+La construction et le déploiement d'un logiciel comporte souvent plusieurs
+étapes et à chaque fois que l'on doit reconstruire l'application ou la
+redéployer, il est nécessaire de repasser par chacune de ces étapes. Dans
+certains cas, les étapes doivent être effectuées dans un ordre précis et
+la personne chargée de cette tâche peut inverser des étapes ou en oublier, ce
+qui entraîne des erreurs particulièrement difficiles à détecter. Heureusement,
+il existe des outils qui permettent d'automatiser ces manipulations. L'outil
+qui a été expérimenté durant ce projet est Ant\cite{ant}.
+
+L'outil Ant permet, entre autres, les opérations suivantes :
+\begin{itemize}
+\item la copie, la suppression et le déplacement de fichiers;
+\item la création et la suppression de répertoires;
+\item la compilation des fichiers sources;
+\item la génération de la documentation Javadoc;
+\item l'exécution des tests unitaires sur le code;
+\item la création d'un fichier d'archive (un \textit{zip} par exemple);
+\item la création d'une librairie Java (JAR).
+\end{itemize}
+Il est aussi possible de créer des tâches Ant qui pourront être utilisées
+avec l'outil. D'ailleurs, plusieurs logiciels ont leur tâche Ant pour être
+intégré facilement à l'outil. Le logiciel Checkstyle en est un exemple.
+
+Un fichier source d'Ant est basé sur la syntaxe du XML 
+(\textit{eXtensible Markup Language}). La syntaxe n'est pas très intuitive
+mais la documentation est assez complète et une quantité incroyable
+d'exemples sont disponibles sur Internet.
+
+L'utilisation d'un outil comme Ant offre une grande valeur ajoutée pour les
+projets où la construction du logiciel nécessite plusieurs étapes ainsi que
+pour le déploiement de l'application. Dans le cadre de ce projet-ci, la valeur
+ajoutée par l'utilisation d'Ant durant le développement du projet est nulle.
+La construction du projet est très simple et l'environnement de développement
+intégré Eclipse s'en charge complètement. Aucune manipulation particulière
+n'est nécessaire pour le déploiement de l'application, ni pour la mise en place
+des sources.
+
+Pour ces raisons, Ant a été enlevé du projet. Il est possible que le besoin
+d'un tel outil se fasse sentir éventuellement, mais pour l'instant ce ne s'est 
+pas avéré nécessaire.
+
+\chapter4
+
+Ce chapitre expose différentes discussions à propos d'observations faites
+durant le développement du projet. Ensuite, le déroulement réel du projet
+est expliqué et comparé à la planification originale du projet. Finalement,
+une synthèse des différentes expérimentations est présentée.
+
+\section{Développement piloté par les tests et développement itératif et
+         incrémental}
+
+En appliquant le développement piloté par les tests avec des tests unitaires,
+nous nous retrouvons avec une classe de tests pour chaque classe applicative,
+donc deux fois plus de classes. Il se tisse un couplage assez fort entre la
+classe de tests et classe applicative, et dans la majorité des cas, une
+méthode publique de la classe applicative possède plusieurs cas de tests dans
+la classe de tests. 
+
+Le couplage en question et le grand nombre d'utilisations des méthodes
+de la classe testée rend les modifications à la classe plus difficiles. En
+effet, lorsque la fonctionnalité d'une méthode est modifiée, il est nécessaire
+de vérifier chacun des cas de test de cette méthode et d'évaluer les cas
+séparément pour savoir si le cas de test est toujours valide et qu'il doit
+être conservé, si le cas de test est presque valide et qu'il doit être
+modifié pour devenir totalement pertinent ou encore si le cas de test n'est
+plus du tout pertinent et qu'il doit être éliminé. Même un changement 
+mineur comme l'ajout ou la suppression d'un paramètre à la méthode va exiger
+des modifications au code des cas de test. Par contre, la modification d'un
+nom de méthode n'a pas vraiment d'impact sur les cas de test puisqu'il est
+toujours possible d'utiliser les fonctionnalités de refactorisation offertes
+par la plupart des IDE (\textit{Integrated Development Environment}) (comme 
+Eclipse) qui permettent de renommer une méthode ou une variable et de
+changer automatiquement toutes les occurences de cette méthode ou variable.
+
+Le fait est que le couplage entre la classe de tests et la classe applicative
+est dérangeant lorsque la classe applicative change. Ce couplage n'est
+pas vraiment dérangeant lorsque l'on applique uniquement le développement
+piloté par les tests puisque la classe de tests est supposée être écrite en
+premier et ensuite la classe applicative l'est. Des changements
+à la conception de la classe ou à sa fonctionnalité ne sont pas supposés se
+produire à ce moment. 
+
+Le problème survient lorsque l'on mélange le 
+développement piloté par les tests et le développement itératif et incrémental.
+Par sa nature même, le développement itératif et incrémental peut amener
+beaucoup de modifications à une classe d'itération en itération. L'interface
+des classes applicatives est donc stable pour le temps d'une itération mais
+elle peut complètement changer durant l'itération suivante. Aussi, il est
+probable que plusieurs classes changent durant la même itération, ce qui
+multiplie l'effet du problème.
+
+Donc, si on applique le développement piloté par les tests et le développement
+itératif et incrémental en même temps, on se retrouve à réviser une quantité 
+surprenante de cas de test à chaque itération. Comme le veut le développement
+piloté par les tests, les cas de test doivent être révisés, ajoutés, modifiés
+et supprimés avant d'avoir fait la modification nécessaire à la classe. Si
+une modification doit être apportée à la conception d'une classe pour en
+augmenter la clarté et diminuer la quantité de code de la classe mais sans
+modifier la fonctionnalité de classe, la quantité de cas de test à réviser
+aura un impact sur la motivation du développeur à apporter cette modification
+pour améliorer la qualité de son code. Si la quantité de cas de tests à modifier
+est trop grande, il est fort probable que le développeur laisse tomber la
+modification et sacrifie la clarté de son code pour sauver le temps nécessaire
+à la modification des cas de tests.
+
+Les deux approches sont excellentes et elles ajoutent une bonne valeur à un
+projet les appliquant. Par contre, pour utiliser les deux approches
+simultanément, il est nécessaire d'avoir des développeurs très
+disciplinés et prêts à investir beaucoup de temps dans la révision de cas de
+tests. Une autre possibilité est d'organiser le développement de façon à ne pas
+avoir à modifier régulièrement les classes applicatives, par exemple en
+ajoutant des fonctionnalités complémentaires au projet sans trop modifier
+celles qui sont déjà en place. Ce n'est pas toujours possible d'organiser le
+travail de cette façon et il ne faut pas tomber dans le piège de créer de
+nouvelles classes qui héritent des anciennes uniquement pour ne pas avoir à
+modifier les anciennes et ainsi augmenter la complexité du code.
+
+\section{Générateur de code et gestionnaire de versions}
+
+L'utilisation d'un gestionnaire de versions amène une nouvelle dynamique au
+développement de logiciel et une bonne valeur ajoutée aux projets. Par contre,
+aussi utile que peut l'être un gestionnaire de versions, on peut quelques fois
+rencontrer des problème à l'utiliser, notamment lorsqu'on se sert d'un
+générateur de code.
+
+Évidemment, le problème ne survient que lorsque les fichiers générés sont
+mis dans le gestionnaire de versions. Si les fichiers ne sont générés qu'une
+seule fois et qu'ensuite ils sont modifiés à la main par les développeurs, le
+problème ne se présente pas non plus. Par contre, si l'on modifie le fichier
+source (celui qui sert de fichier d'entrée au générateur de code) et que l'on
+désire regénérer les fichiers, il faut être prudent. Par exemple, si l'on
+écrase les anciens fichiers avec les nouveaux, on peut se retrouver avec 
+la présence d'un
+ancien fichier qui n'a pas été regénéré parce qu'il n'est plus utile.
+Afin d'éviter ces problèmes, il est conseillé d'effacer tous les
+fichiers générés avant de les regénérer. Un outil comme SableCC place tous les
+fichiers générés dans des répertoires; il est donc très facile de tous les
+supprimer d'un coup. Lorsque les fichiers sont supprimés du gestionnaire de
+versions, sans qu'un \textit{commit} ne soit fait, il n'est pas possible de
+créer des fichiers portant le même nom que ceux supprimés, sous peine de
+corrompre le contenu du référentiel et de possiblement le rendre inutilisable.
+Il est donc primordial d'effectuer un \textit{commit} après la suppression des
+fichiers, avant de regénérer les fichiers. En effectuant ce traitement, on
+perd tout l'historique concernant le fichier.
+
+Bien sûr, en appliquant rigoureusement cette recette, le problème est
+contourné. Une autre alternative est de ne pas mettre les fichiers générés 
+dans le gestionnaire de versions; on ne met que le fichier source et les
+fichiers générés sont sur le poste local.
+Cette pratique nécessite cependant l'utilisation d'un outil de construction
+de logiciel, comme Ant, puisqu'il sera nécessaire aux autres développeurs
+travaillant sur ce projet de regénérer les fichiers. Un tel outil permet
+de détecter si le fichier source a été modifié et de ne lancer la génération
+que si c'est le cas, pour éviter d'alourdir la construction en générant
+inutilement les fichiers à chaque fois.
+
+Il ne s'agit pas d'un très gros problème et il est facilement contournable. 
+Le fait est que ce cas particulier nécessite une manipulation attentive et que
+les chances qu'un développeur oublie cette particularité est forte.
+
+\section{Déroulement du projet}
+
+Il est particulièrement rare qu'un projet de développement de logiciel se
+déroule exactement comme il avait été prévu au départ\cite{gray07} et ce
+projet ne fait pas exception à la règle.
+
+Tout d'abord, aucune technique d'estimation, comme le calcul des points de
+fonction par exemple, n'a été appliquée pour estimer un tant soi peu le temps
+que le projet allait exiger pour être développé. Comme il a été mentionné
+précédemment, le développement du projet a débuté au début de juillet 2007 et
+devait se terminer en décembre 2007. Cette limite n'était qu'une estimation
+en l'air et l'écart de temps entre juillet et décembre devait être
+suffisamment grand pour compléter tout ce qui était planifié. 
+
+Le projet a été développé au complet par un seul développeur et à temps 
+partiel. Les 6 mois prévus pour le développement du projet étaient suffisants
+pour un développeur ayant des disponibilités fixes à toutes les semaines, ce
+qui n'était pas le cas ici. Le développeur en question avait des
+disponibilités très variables. Par exemple, durant une semaine, il pouvait
+investir 25 heures dans le projet et la semaine suivante ne pas y toucher du
+tout. Il pouvait arriver que le développeur ne touchait pas du tout au
+projet pour plus d'une semaine consécutive, ce qui ne pouvait pas être
+calculé dans la planification originale.
+
+Puisque aucune estimation n'avait été faite sur l'effort à mettre au projet
+pour le développer, il était pratiquement impossible d'établir un échéancier
+réalisable. Dans ce cas-ci, l'effort à investir en considérant les
+disponibilités du développeur rendait l'accomplissement du projet en 6 mois
+irréaliste.
+
+Un point est cependant intéressant à mentionner, plusieurs
+événements extérieurs se sont produits durant le développement du projet
+ayant un impact sur le déroulement du projet. Ce qui est intéressant, c'est que
+même lors d'un petit projet n'impliquant qu'un seul développeur, ce genre
+d'événement peut se produire et retarder le projet, exactement comme 
+pour un plus gros projet impliquant plusieurs ressources. Par exemple durant le 
+projet, le développeur unique est tombé malade durant une bonne période, ce 
+qui a considérablement ralenti l'avancement du projet. Ce genre d'événement
+n'est pas prévisible et aucun projet n'en est à l'abri.
+
+Pour réussir à terminer le projet, il a été nécessaire de couper un
+peu dans la planification originale. Une pratique souvent utilisée dans ces
+cas consiste à couper des fonctionnalités au logiciel\cite{gray07}.
+Il est assez difficile dans le cadre de ce projet de couper des 
+fonctionnalités. Par exemple, couper la génération des DAOs ou des POJOs
+rendra le code généré difficile à utiliser et le projet perd un peu sa
+raison d'être. La seule fonctionnalité qui a été coupée pour sauver un peu de
+temps a été la génération de la documentation Javadoc pour les classes
+générées. La cinquième itération a donc été complètement coupée.
+
+À part la cinquième itération, certaines choses originalement planifiées ont
+également été abandonnées. Au lieu de générer le code pour MySQL et Oracle,
+uniquement MySQL est supporté. Le résultat des différentes itérations n'a pas 
+été publié sur Internet au fur et à mesure que le projet avancait, d'ailleurs 
+le projet n'a pas du tout été publié sur Internet. Comme il a été mentionné
+précédemment, l'écriture de tests unitaires a aussi été abandonnée. Bien que
+l'expérimentation visant à vérifier l'impact de l'arrêt de l'écriture de tests
+unitaires sur le développement ait été très intéressante, le gain de temps
+apporté par cet abandon n'a pas été négligeable. Le résultat aurait pu
+être le même lors de l'expérimentation visant à arrêter la documentation du
+code mais le résultat a été complètement le contraire. Le temps de 
+développement se voyait allonger au lieu d'être raccourci à cause du temps
+nécessaire pour lire le code d'une méthode et d'en comprendre le
+fonctionnement comparativement à lire quelques lignes de documentation.
+Finalement, la documentation expliquant aux utilisateurs comment utiliser
+le générateur de code n'a pas été écrite. C'est d'ailleurs la raison pour
+laquelle le projet n'a pas été publié sur Internet. Il n'y a pas d'intérêt
+à publier un outil que personne ne pourrait utiliser. Cela serait moins
+problématique dans bien d'autres cas, sauf qu'ici il s'agit d'un générateur
+fonctionnant avec un métalangage et il n'existe pas encore de documentation
+expliquant la syntaxe du métalangage.
+
+En résumé, la génération de la Javadoc et la documentation du métalangage ont
+été abandonné. Il ne s'agit pas d'une grosse coupure par rapport à la
+planification originale. Malgré cette coupure, le développement du projet
+n'a pas pu être terminé pour décembre 2007. La date limite a dû être
+repoussée à plus tard et le développement du projet s'est terminé en février
+2008. Ce qui n'a pas été fait dans le cadre de ce projet sera éventuellement
+fait, avec probablement d'autres améliorations.
+
+\section{Synthèse}
+
+Plusieurs techniques et approches du génie logiciel ont été expérimentées
+durant ce projet. Elles sont au nombre de huit pour être précis. 
+Certaines expérimentations ont été
+plus concluantes que d'autres pour ce projet-ci. Sans vouloir affirmer que
+certaines techniques sont mauvaises, il serait plus exact de dire qu'elles
+s'appliquent moins à ce type de projet. Cependant, la majorité des
+expérimentations faites ont apporté une dimension intéressante au projet.
+
+En somme, voici les quelques conclusions faites suite à ces expérimentations.
+\begin{description}
+\item[Développement itératif et incrémental] Cette approche de développement
+est très prometteuse. L'aspect itératif permet de mieux se concentrer sur
+les fonctionnalités qu'on implante durant l'itération courante sans devoir
+constamment prévoir les développements futurs. Le fait d'avoir un logiciel
+fonctionnel en peu de temps, même si les fonctionnalités ne sont pas toutes
+implémentées, est particulièrement motivante. Il est facile d'imaginer
+l'intérêt que pourrait avoir les clients d'un projet développé de cette façon
+à suivre l'avancement du développement du logiciel.
+
+\item[Développement piloté par les tests] Cette approche n'a pas été très
+concluante durant ce projet. Il ne fait aucun doute que c'est une bonne
+approche qui permet de développer des logiciels robustes et testés à fond.
+Elle est cependant très gourmande en temps, particulièrement si les classes
+à tester sont appelées à changer régulièrement durant le développement du
+projet. Il est fort probable que cette approche est plus payante au niveau
+de la maintenance d'un logiciel, car la présence d'une grosse banque de tests
+unitaires permet d'accélérer la détection d'une intrusion de \textit{bugs}
+suivant l'ajout d'une fonctionnalité.
+
+\item[Prototypage] Dans ce cas-ci, le prototypage du code généré s'est avéré
+une étape cruciale dans le développement du projet. Des erreurs critiques ont
+été décelées lors de cette étape et le projet aurait pu ne pas être utilisable.
+L'expérience a donc été plus que concluante. Cette pratique est essentielle
+pour le développement d'un générateur de code. Pour les projets autres qu'un
+générateur de code, le prototypage sert souvent à avoir du \textit{feed-back}
+des utilisateurs à propos de l'application. Dans un contexte de développement
+itératif et incrémental, cette approche est un peu moins pertinente (sauf pour
+un générateur de code, évidemment).
+
+\item[Tests unitaires] Les tests unitaires ont un avantage particulièrement
+intéressant, ils provoquent la réflexion. Lorsqu'on écrit les cas de tests
+pour une méthode, on s'interroge en même temps sur ce que devrait supporter
+la méthode comme entrées, comme gestion d'erreurs, exceptions, etc. Il n'est
+pas rare qu'en écrivant les tests unitaires d'une classe on ajoute un cas
+d'utilisation à la classe, si la classe est déjà écrite, ou qu'on modifie les
+cas d'utilisation possibles, si la classe n'est pas déjà écrite. Bien sûr, les
+tests unitaires permettent la détection des erreurs logicielles et il s'agit
+d'un outil très intéressant pour une équipe d'assurance qualité. Fait à
+souligner : 
+uniquement pour la réflexion que le test unitaire provoque à propos de la
+méthode testée, l'utilisation de cette pratique est encouragée.
+
+\item[Gestionnaire de versions] L'utilisation d'un gestionnaire de versions
+durant le développement d'un logiciel ne devrait pas être optionnel. Les
+fonctionnalités offertes par un tel outil sont trop utiles pour qu'on s'en
+passe. D'ailleurs, l'utilisation d'un gestionnaire de versions devrait être
+enseigné dans les premiers cours de programmation, de sorte que son utilisation
+devienne un réflexe.
+
+\item[Normes de programmation et de documentation] L'application de normes
+de programmation est surtout utile lorsque le code écrit est destiné à être 
+lu par plusieurs personnes. Pour un projet à développeur unique, c'est moins
+important, en supposant que c'est ce développeur qui effectuera la maintenance
+sur le code en question. L'application de ces normes dans des équipes de
+développement ou pour des projets de logiciels libres est fortement conseillée.
+Concernant la documentation du code, l'expérience d'arrêter la documentation a 
+prouvé que la documentation était essentielle. L'absence de documentation est
+non productive et entraine des pertes de temps considérables.
+
+\item[Générateur de code] Outre le léger problème mentionné précédemment avec
+le gestionnaire de versions, un générateur de code permet de sauver beaucoup
+de temps. Dans ce cas-ci, l'écriture d'un analyseur syntaxique complet et
+robuste aurait été une tâche très laborieuse, même si la syntaxe du métalangage
+est particulièrement simple. Lorsque possible, faire générer du code que l'on
+aurait à écrire de toute façon ne peut que nous faire sauver du temps.
+
+\item[Outil de construction de logiciel] Pour ce projet, l'utilisation d'un
+tel outil ne s'est pas avéré nécessaire, d'où la suppression de son
+utilisation. Un tel outil est utile dans des cas particuliers où la copie
+des fichiers sources d'un logiciel ou le déploiement du logiciel demande
+beaucoup de manipulations répétitives, ce qui n'est pas le cas ici.
+\end{description}
+
+\begin{conclusion}
+L'inspiration ne manque pas pour des travaux futurs. Tout d'abord, et le plus
+important, il sera important d'écrire la documentation pour l'utilisation
+du générateur de code et de le publier sur Internet afin qu'il puisse servir
+éventuellement. Ensuite, le développement des fonctionnalités qui ont été
+coupées pourra être fait, c'est-à-dire générer de la documentation Javadoc pour
+les classes générées et offrir la possibilité de générer le code de la base
+de données pour Oracle 10g.
+
+D'autres idées sont aussi envisageables pour des travaux futurs. Par exemple,
+il serait intéressant de changer l'implémentation des relations entre les
+entités dans les POJOs. Au lieu d'utiliser un identifiant, la relation pourrait
+être représentée par une référence sur l'objet de la relation. Un mécanisme
+de chargement passif (\textit{lazy loading}) pourrait être implémenté de
+façon à ne charger l'objet en relation que lorsqu'on traverse la référence
+en question. Outre MySQL et Oracle, plusieurs systèmes de gestion de base
+de données pourraient être supportés. Il serait même envisageable d'offrir la
+possibilité de générer du C++ en plus du Java.
+
+Le développement de ce projet a été une excellente façon d'expérimenter
+différentes techniques et approches de développement encouragées par les
+meilleures pratiques du génie logiciel. Évidemment, certaines de ces pratiques
+s'appliquent mieux à certains types de projets. Plusieurs de ces pratiques
+sont applicables à tous les projets de développement de logiciels et elles
+devraient toujours en faire partie. Pour les autres, c'est du cas par cas, car
+aucune des pratiques expérimentées dans ce projet n'est à écarter 
+définitivement.
+\end{conclusion}
+
+%===============================================================================
+\newpage
+\bibliography{rapport}{}
+\bibliographystyle{theseuqam}
+\end{document}
