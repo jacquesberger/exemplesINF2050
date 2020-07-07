@@ -1,8 +1,8 @@
 Révision de code
 ================
 
-La révision de code est une pratique visant l'analyse du code source par un pair
-dans le but de trouver des erreurs de programmation.
+La révision de code est une pratique visant l'analyse du code source par un
+collègue dans le but de trouver des erreurs de programmation.
 
 Objectifs
 ---------
