@@ -67,5 +67,3 @@
             }while(!decision.equalsIgnoreCase ("non") && !decision.equalsIgnoreCase ("oui"));
         }while (decision.equalsIgnoreCase ("oui"));
     }}
-
-
