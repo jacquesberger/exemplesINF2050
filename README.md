@@ -1,6 +1,11 @@
 README
 ======
 
+Version
+-------
+
+V 1.0
+
 
 Répertoires
 -----------
