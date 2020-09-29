@@ -26,7 +26,7 @@ Exercices
 3. Supprimez complètement le répertoire contenant votre projet de votre
    ordinateur. Clônez le dépôt distant sur votre poste.
 4. Ajoutez un programme Java dans votre dépôt. Votre programme doit être un
-   FizzBuzz ([détails de FizzBuzz](https://www.jeuweb.org/showthread.php?tid=6596)].
+   FizzBuzz ([détails de FizzBuzz](https://nouvelle-techno.fr/actualites/le-fizz-buzz-le-test-dembauche-a-la-mode)).
    Faites votre FizzBuzz pour aller de 1 à 100. Poussez votre programme sur le
    dépôt distant. Assurez-vous de ne pas pousser le fichier `.class` sur le
    dépôt distant.
