@@ -16,11 +16,12 @@ Objectifs
 Exercices
 ---------
 
-1. Créez un projet Maven dans IntelliJ utilisant Java 14. Placez-y des classes que vous avez déjà
+1. Créez un projet Maven dans votre IDE utilisant Java 11. Placez-y des classes que vous avez déjà
    fait dans un autre projet/TP/atelier, sans dépendance vers une librairie
    externe (jar).
 
-   Assurez-vous que vous compilez et que vous exécutez le code avec Java 14.
+   Assurez-vous que vous compilez et que vous exécutez le code avec la bonne
+   version du compilateur.
 
 2. Ajoutez une dépendance vers la librairie `json-lib` dans le fichier `POM`.
 
@@ -36,9 +37,7 @@ Exercices
    </dependencies>
    ```
 
-   Ajoutez un petit bout de code qui utilise cette librairie pour vérifier que
-   ça fonctionne correctement.
-
+   Observez le résultat et le téléchargement des librairies.
 3. Allez sur le site [https://mvnrepository.com/](https://mvnrepository.com/).
    Trouvez la librairie Apache Commons Logging 1.2. Ajoutez cette dépendance à
    votre projet en utilisant Maven.
