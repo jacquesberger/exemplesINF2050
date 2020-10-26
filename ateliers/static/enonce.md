@@ -33,3 +33,6 @@ Exercices
    soulevés par PMD.
 
 7. Intégrez Checkstyle et PMD au build Maven en modifiant le fichier `POM.xml`.
+
+8. Ajoutez un plugin au POM.xml afin de pouvoir construire le logiciel et toutes
+   ses dépendances dans un même fichier jar.
