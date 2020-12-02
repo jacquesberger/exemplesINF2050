@@ -23,3 +23,9 @@ Licence
 
 Apache 2.0 : Vous êtes libres d'utiliser, modifier et distribuer ce code, tant
 que vous citez l'auteur original.
+
+
+Auteur
+------
+
+Jacques Berger
