@@ -29,3 +29,10 @@ Auteur
 ------
 
 Jacques Berger
+
+
+Recette de poutine
+------------------
+
+Prends des frites, du fromage et de la sauce. Jette tout ça dans un bol et
+mange.
