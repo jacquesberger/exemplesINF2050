@@ -1,7 +1,7 @@
 Librairie json-lib
 ==================
 
-La librairie json-lib sera utilisée durant le projet de session. Il s'agit d'une
+La librairie json-lib pourrait être utilisée durant le projet de session. Il s'agit d'une
 librairie offrant les fonctionnalités pour interpréter et générer des documents
 JSON sans devoir manipuler les particularités syntaxiques de cette notation dans
 nos programmes Java.
