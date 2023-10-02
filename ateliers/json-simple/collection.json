@@ -1,0 +1,69 @@
+{
+  "collection": [{
+    "type": "album",
+    "artist": "Avantasia",
+    "title": "The Metal Opera",
+    "publication": 2001,
+    "rating": 3
+  }, {
+    "type": "album",
+    "artist": "Deftones",
+    "title": "Around the Fur",
+    "publication": 1997,
+    "rating": 4
+  }, {
+    "type": "album",
+    "artist": "Dream Theater",
+    "title": "Octavarium",
+    "publication": 2005,
+    "rating": 3
+  }, {
+    "type": "album",
+    "artist": "Fear Factory",
+    "title": "Obsolete",
+    "publication": 1998,
+    "rating": 4
+  }, {
+    "type": "album",
+    "artist": "Gamma Ray",
+    "title": "Land of the Free",
+    "publication": 1996,
+    "rating": 5
+  }, {
+    "type": "album",
+    "artist": "Helloween",
+    "title": "The Dark Ride",
+    "publication": 2000,
+    "rating": 5
+  }, {
+    "type": "album",
+    "artist": "Iron Maiden",
+    "title": "Dance of Death",
+    "publication": 2003,
+    "rating": 4
+  }, {
+    "type": "single",
+    "artist": "Iron Maiden",
+    "title": "Out of the Silent Planet",
+    "publication": 2000,
+    "rating": 3
+  }, {
+    "type": "album",
+    "artist": "Korn",
+    "title": "Issues",
+    "publication": 1999,
+    "rating": 4
+  }, {
+    "type": "album",
+    "artist": "Megadeth",
+    "title": "The System has Failed",
+    "publication": 2004,
+    "rating": 4
+  }, {
+    "type": "album",
+    "artist": "Nightwish",
+    "title": "Century Child",
+    "publication": 2002,
+    "rating": 5
+  }]
+}
