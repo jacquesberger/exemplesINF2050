@@ -11,7 +11,6 @@ Objectifs
 ---------
 
 * Tenter la transition d'un projet IntelliJ vers un projet Maven.
-* Vivre l'expérience d'intégrer Maven à un projet existant.
 
 Exercice
 --------
